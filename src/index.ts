@@ -91,31 +91,31 @@ export default class Delcom {
           }
           this._config.job = {
             dir: await fsp.mkdtemp(
-              `${this._config.delcomTempDir}${path.sep}job`
+              `${this._config.delcomTempDir}${path.sep}job`,
             ),
             writeStreams: {},
           };
           console.log(
-            `New job files will be stored at ${this._config.job.dir}`
+            `New job files will be stored at ${this._config.job.dir}`,
           );
           for (const fileName of fileNames) {
             this._config.job.writeStreams[fileName] = fs.createWriteStream(
               `${this._config.job.dir}${path.sep}${fileName}`,
-              { encoding: 'base64' }
+              { encoding: 'base64' },
             );
           }
           callback();
         } catch (err) {
           this.clearJob(err, callback);
         }
-      }
+      },
     );
 
     socket.on(
       'receive_file_data_ack',
       (
         data: { name: string; chunk: string | Buffer },
-        callback: callbackWithErr
+        callback: callbackWithErr,
       ) => {
         try {
           if (!this._config.job) {
@@ -133,7 +133,7 @@ export default class Delcom {
         } catch (err) {
           this.clearJob(err, callback);
         }
-      }
+      },
     );
 
     for (const outputName of outputNames) {
@@ -187,7 +187,7 @@ export default class Delcom {
           isWorker: this._config.isWorker,
         });
         res();
-      })
+      }),
     );
   }
 
@@ -251,7 +251,7 @@ export default class Delcom {
       cb1?: () => unknown; // called after job created with worker
       cb2?: () => unknown; // called after job files sent
       cb3?: () => unknown; // called after job completed
-    }
+    },
   ): Promise<void | { err: unknown }> {
     try {
       await this.createJob(workerID, filePaths, outDir);
@@ -329,7 +329,7 @@ export default class Delcom {
   private async createJob(
     workerID: string,
     filePaths: fs.PathLike[],
-    outDir?: fs.PathLike
+    outDir?: fs.PathLike,
   ) {
     try {
       this._config.isDelegating = true;
@@ -349,7 +349,7 @@ export default class Delcom {
       });
       for (const outputName of outputNames) {
         this._config.res.writeStreams[outputName] = fs.createWriteStream(
-          `${this._config.res.dir}${path.sep}${outputName}`
+          `${this._config.res.dir}${path.sep}${outputName}`,
         );
       }
       if (!(await fsp.lstat(this._config.res.dir)).isDirectory()) {
@@ -361,7 +361,7 @@ export default class Delcom {
             throw Error(`Invalid file path! ${filePath} is not a file!`);
           }
           return path.basename(filePath.toString());
-        })
+        }),
       );
       if (!fileNames.includes('Dockerfile')) {
         throw Error('No Dockerfile found in filePaths!');
@@ -369,7 +369,7 @@ export default class Delcom {
       const ack = await this._config.socket?.emitWithAck(
         'new_job_ack',
         workerID,
-        fileNames
+        fileNames,
       );
       if (ack) {
         throw ack;
@@ -403,7 +403,7 @@ export default class Delcom {
               resolve();
             });
           });
-        })
+        }),
       );
       console.log('files done sending');
       socket.emit('files_done_sending');

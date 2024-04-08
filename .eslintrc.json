@@ -14,11 +14,11 @@
     },
     "plugins": [
         "@typescript-eslint",
-        "@stylistic/js"
+        "@stylistic"
     ],
     "rules": {
       // given
-        "indent": [
+        "@stylistic/indent": [
             "error",
             2
         ],
@@ -26,7 +26,7 @@
             "error",
             "unix"
         ],
-        "quotes": [
+        "@stylistic/quotes": [
             "error",
             "single"
         ],
@@ -34,7 +34,8 @@
         "array-callback-return": "warn",
         "no-await-in-loop": "warn",
         "dot-notation": "warn",
-        "semi": "error",
-        "comma-dangle": ["warn", "always-multiline"]
+        "@stylistic/semi": "error",
+        "@stylistic/comma-dangle": ["warn", "always-multiline"],
+        "@stylistic/max-len": ["warn", 80]
     }
 }
