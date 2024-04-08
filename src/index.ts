@@ -76,13 +76,13 @@ export default class Delcom {
       console.warn(`${this._config.delcomTempDir} not detected, making...`);
       fsp.mkdir(this._config.delcomTempDir);
     }
-  
+
     const addr = `http://${this._config.ip}:${this._config.port}`;
     const socket = io(addr); // todo add query with config
     this._config.socket = socket;
 
     socket.on(
-      'new_job_ack', 
+      'new_job_ack',
       async (fileNames: string[], callback: callbackWithErr) => {
         try {
           console.log('Job requested, preparing...');
@@ -133,7 +133,7 @@ export default class Delcom {
 
     for (const outputName of outputNames) {
       socket.on(
-        `${outputName}`, 
+        `${outputName}`,
         async (chunk, callback: callbackWithErr) => {
           try {
             const ws = this._config.res?.writeStreams[outputName];
@@ -148,7 +148,7 @@ export default class Delcom {
     }
 
     socket.on(
-      'run_job_ack', 
+      'run_job_ack',
       async (callback: callbackWithErr) => {
         try {
         // TODO ensure write streams are drained, clear them
@@ -166,7 +166,7 @@ export default class Delcom {
       });
 
     socket.on(
-      'finished', 
+      'finished',
       () => {
         this.clearDelegation();
       });
@@ -197,7 +197,7 @@ export default class Delcom {
   }
 
   /**
-   * 
+   *
    * @returns A void promise on success
    */
   async joinWorkforce(): Promise<void | {err: unknown}> {
@@ -225,8 +225,8 @@ export default class Delcom {
   }
 
   /**
-   * 
-   * @returns 
+   *
+   * @returns
    */
   async getWorkers(): Promise<{res?: workerListElement[], err?: unknown}> {
     try {
@@ -241,7 +241,7 @@ export default class Delcom {
   }
 
   /**
-   * 
+   *
    * @param workerID the workerID to delegate the job to
    * @param filePaths dockerfile and dockerfile build deps
    * @param outDir optional directory to save to
@@ -300,7 +300,7 @@ export default class Delcom {
       });
     });
   }
-  
+
   private runContainer() {
     return new Promise<void>((res, rej) => {
       if (!this._config.job?.dir) {
@@ -333,8 +333,8 @@ export default class Delcom {
   }
 
   private async createJob(
-    workerID: string, 
-    filePaths: fs.PathLike[], 
+    workerID: string,
+    filePaths: fs.PathLike[],
     outDir?: fs.PathLike,
   ) {
     try {
