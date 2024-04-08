@@ -66,8 +66,9 @@ export default class Delcom {
   }
 
   /**
-   * 
-   * @returns A promise of successful connection
+   * Call to initialize the connection to the IP and port
+   *
+   * @returns A void promise on successful connection
    */
   async init() {
     this._config.delcomTempDir = path.join(os.tmpdir(), 'DELCOM');
@@ -195,6 +196,80 @@ export default class Delcom {
       }));
   }
 
+  /**
+   * 
+   * @returns A void promise on success
+   */
+  async joinWorkforce(): Promise<void | {err: unknown}> {
+    try {
+      this._config.isWorker = true;
+      if (!this._config.socket) {
+        throw Error('Not connected, cannot become worker!');
+      }
+      await this._config.socket.emitWithAck('join_ack');
+    } catch (err) {
+      return {err};
+    }
+  }
+
+  async leaveWorkforce(): Promise<void | {err: unknown}> {
+    try {
+      this._config.isWorker = false;
+      if (!this._config.socket) {
+        throw Error('Not connected, cannot stop working!');
+      }
+      await this._config.socket.emitWithAck('leave_ack');
+    } catch (err) {
+      return {err};
+    }
+  }
+
+  /**
+   * 
+   * @returns 
+   */
+  async getWorkers(): Promise<{res?: workerListElement[], err?: unknown}> {
+    try {
+      const socket = this._config.socket;
+      if (!socket) {
+        throw Error('Cannot get workers, no socket!');
+      }
+      return {res: await socket.emitWithAck('get_workers_ack')};
+    } catch (err) {
+      return {err};
+    }
+  }
+
+  /**
+   * 
+   * @param workerID the workerID to delegate the job to
+   * @param filePaths dockerfile and dockerfile build deps
+   * @param outDir optional directory to save to
+   * @param cbs optional callback functions
+   * @returns // TODO result directory
+   */
+  async runJob(
+    workerID: string,
+    filePaths: fs.PathLike[],
+    outDir?: fs.PathLike,
+    cbs?: {
+      cb1?: ()=>unknown, // called after job created with worker
+      cb2?: ()=>unknown, // called after job files sent
+      cb3?: ()=>unknown, // called after job completed
+    },
+  ): Promise<void | {err: unknown}> {
+    try {
+      await this.createJob(workerID, filePaths, outDir);
+      if (cbs?.cb1) cbs.cb1();
+      await this.sendFiles(filePaths);
+      if (cbs?.cb2) cbs.cb2();
+      await this._config.res?.finishPromise.promise;
+      if (cbs?.cb3) cbs?.cb3();
+    } catch (err) {
+      return {err};
+    }
+  }
+
   private buildContainer() {
     return new Promise<void>((res, rej) => {
       if (!this._config.job?.dir) {
@@ -255,64 +330,6 @@ export default class Delcom {
         }
       });
     });
-  }
-
-  async joinWorkforce(): Promise<void | {err: unknown}> {
-    try {
-      this._config.isWorker = true;
-      if (!this._config.socket) {
-        throw Error('Not connected, cannot become worker!');
-      }
-      await this._config.socket.emitWithAck('join_ack');
-    } catch (err) {
-      return {err};
-    }
-  }
-
-  async leaveWorkforce(): Promise<void | {err: unknown}> {
-    try {
-      this._config.isWorker = false;
-      if (!this._config.socket) {
-        throw Error('Not connected, cannot stop working!');
-      }
-      await this._config.socket.emitWithAck('leave_ack');
-    } catch (err) {
-      return {err};
-    }
-  }
-
-  async getWorkers(): Promise<{res?: workerListElement[], err?: unknown}> {
-    try {
-      const socket = this._config.socket;
-      if (!socket) {
-        throw Error('Cannot get workers, no socket!');
-      }
-      return {res: await socket.emitWithAck('get_workers_ack')};
-    } catch (err) {
-      return {err};
-    }
-  }
-
-  async runJob(
-    workerID: string,
-    filePaths: fs.PathLike[],
-    outDir?: fs.PathLike,
-    cbs?: {
-      cb1?: ()=>unknown, // called after job created with worker
-      cb2?: ()=>unknown, // called after job files sent
-      cb3?: ()=>unknown, // called after job completed
-    },
-  ): Promise<void | {err: unknown}> {
-    try {
-      await this.createJob(workerID, filePaths, outDir);
-      if (cbs?.cb1) cbs.cb1();
-      await this.sendFiles(filePaths);
-      if (cbs?.cb2) cbs.cb2();
-      await this._config.res?.finishPromise.promise;
-      if (cbs?.cb3) cbs?.cb3();
-    } catch (err) {
-      return {err};
-    }
   }
 
   private async createJob(
@@ -416,9 +433,7 @@ export default class Delcom {
         this._config.res.finishPromise.rej();
       }
     } else {
-      console.log('here');
       if (this._config.res?.finishPromise.res) {
-        console.log('here2');
         this._config.res.finishPromise.res();
       }
     }
