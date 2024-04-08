@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { io, Socket } from 'socket.io-client';
 import { spawn } from 'child_process';
+import { client as dcc } from 'delcom-types';
 
 const outputNames = [
   'build_std_out',
@@ -13,10 +14,6 @@ const outputNames = [
 ];
 
 type callbackWithErr = (arg0?: { err: string }) => void;
-
-type workerListElement = {
-  id: string;
-};
 
 type jobInfoType = {
   dir: fs.PathLike;
@@ -66,7 +63,7 @@ export default class Delcom {
    *
    * @returns A void promise on successful connection
    */
-  async init() {
+  async init(): Promise<void> {
     this._config.delcomTempDir = path.join(os.tmpdir(), 'DELCOM');
     if (!fs.existsSync(this._config.delcomTempDir)) {
       console.warn(`${this._config.delcomTempDir} not detected, making...`);
@@ -79,8 +76,9 @@ export default class Delcom {
 
     socket.on(
       'new_job_ack',
-      async (fileNames: string[], callback: callbackWithErr) => {
+      async (newJobData: dcc.newJobAckArg, callback: dcc.newJobAckCB) => {
         try {
+          const fileNames = newJobData.fileNames;
           console.log('Job requested, preparing...');
           if (this._config.isWorking || this._config.job) {
             throw Error('Already working job!');
@@ -223,7 +221,10 @@ export default class Delcom {
    *
    * @returns
    */
-  async getWorkers(): Promise<{ res?: workerListElement[]; err?: unknown }> {
+  async getWorkers(): Promise<{
+    res?: dcc.workerListElement[];
+    err?: unknown;
+  }> {
     try {
       const socket = this._config.socket;
       if (!socket) {
