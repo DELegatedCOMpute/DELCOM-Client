@@ -5,7 +5,9 @@
   "description": "TS client for DELCOM",
   "main": "build/index.ts",
   "type": "module",
+  "types": "src/types.d.ts",
   "scripts": {
+    "prepare": "npm run build",
     "build": "rimraf ./build && tsc",
     "start": "npm run build && node build/index.js",
     "start:dev": "tsx watch src/index.ts"

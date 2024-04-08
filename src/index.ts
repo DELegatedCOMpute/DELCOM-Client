@@ -1,10 +1,10 @@
-import fs from 'node:fs';
+import fs, { PathLike } from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { spawn } from 'child_process';
-import { client as dcc } from 'delcom-types';
+import type * as dcc from './types.d.ts';
 
 const outputNames = [
   'build_std_out',
@@ -13,38 +13,8 @@ const outputNames = [
   'run_std_err',
 ];
 
-type callbackWithErr = (arg0?: { err: string }) => void;
-
-type jobInfoType = {
-  dir: fs.PathLike;
-  writeStreams: { [key: string]: fs.WriteStream };
-};
-
-type resultInfoType = {
-  dir: fs.PathLike;
-  writeStreams: { [key: string]: fs.WriteStream };
-  finishPromise: {
-    promise?: Promise<void>;
-    res?: () => void;
-    rej?: (arg0?: unknown) => void;
-  };
-};
-
-type configType = {
-  ip: string; // ip of server
-  port: number; // port of server
-  socket?: Socket; // socket to server
-  id?: string; // unique ID
-  delcomTempDir?: string;
-  isWorking: boolean; // if the client is currently working
-  isDelegating: boolean; // if the client is currently working
-  isWorker: boolean; // if the client is willing to work
-  job?: jobInfoType; // info about current job
-  res?: resultInfoType; // info about job results
-};
-
-export default class Delcom {
-  private _config: configType;
+export default class Delcom implements dcc.DelcomClient {
+  private _config: dcc.configType;
 
   constructor(args: { ip: string; port: number }) {
     const { ip, port } = args;
@@ -76,7 +46,7 @@ export default class Delcom {
 
     socket.on(
       'new_job_ack',
-      async (newJobData: dcc.newJobAckArg, callback: dcc.newJobAckCB) => {
+      async (newJobData: dcc.newJobAckArg, callback: dcc.callbackWithErr) => {
         try {
           const fileNames = newJobData.fileNames;
           console.log('Job requested, preparing...');
@@ -112,14 +82,14 @@ export default class Delcom {
     socket.on(
       'receive_file_data_ack',
       (
-        data: { name: string; chunk: string | Buffer },
-        callback: callbackWithErr,
+        arg0: dcc.receiveFileDataArg,
+        callback: dcc.callbackWithErr,
       ) => {
         try {
           if (!this._config.job) {
             throw Error('No job setup to write to!');
           }
-          const { name, chunk } = data;
+          const { name, chunk } = arg0;
           const jobWS = this._config.job.writeStreams;
           jobWS[name].write(chunk, (err) => {
             if (err) {
@@ -135,20 +105,26 @@ export default class Delcom {
     );
 
     for (const outputName of outputNames) {
-      socket.on(`${outputName}`, async (chunk, callback: callbackWithErr) => {
+      socket.on(`${outputName}`, async (
+        arg0: dcc.outputArg,
+        callback: dcc.outputCB,
+      ) => {
         try {
           const ws = this._config.res?.writeStreams[outputName];
           if (!ws) {
             throw Error('No writeable stream to write to!');
           }
-          ws.write(chunk);
+          ws.write(arg0.chunk);
         } catch (err) {
           this.clearJob(err, callback);
         }
       });
     }
 
-    socket.on('run_job_ack', async (callback: callbackWithErr) => {
+    socket.on('run_job_ack', async (
+      arg0: dcc.runJobAckArg,
+      callback: dcc.runJobAckCB,
+    ) => {
       try {
         // TODO ensure write streams are drained, clear them
         console.log(`starting job at ${this._config.res?.dir}`);
@@ -168,7 +144,10 @@ export default class Delcom {
       this.clearDelegation();
     });
 
-    socket.on('get_config_ack', (callback: (arg0: configType) => void) => {
+    socket.on('get_config_ack', (
+      arg0: dcc.getConfigAckArg,
+      callback: dcc.getConfigAckCB,
+    ) => {
       callback(this._config);
     });
 
@@ -244,23 +223,31 @@ export default class Delcom {
    * @param cbs optional callback functions
    * @returns // TODO result directory
    */
-  async runJob(
+  async delegateJob(
     workerID: string,
     filePaths: fs.PathLike[],
-    outDir?: fs.PathLike,
-    cbs?: {
-      cb1?: () => unknown; // called after job created with worker
-      cb2?: () => unknown; // called after job files sent
-      cb3?: () => unknown; // called after job completed
+    opts?: {
+      outDir?: fs.PathLike,
+      cbs?: {
+        whenJobAssigned?: (path: fs.PathLike) => void; // job assigned
+        whenFilesSent?: () => void; // job files sent
+        whenJobDone?: () => void; // job completed successfully
+      },
     },
-  ): Promise<void | { err: unknown }> {
+  ): Promise<PathLike | { err: unknown }> {
     try {
-      await this.createJob(workerID, filePaths, outDir);
-      if (cbs?.cb1) cbs.cb1();
+      const cbs = opts?.cbs;
+      await this.createJob(workerID, filePaths, opts?.outDir);
+      const outDir = this._config.res?.dir;
+      if (!outDir) {
+        throw Error('No outDir after creating job?');
+      }
+      if (cbs?.whenJobAssigned) cbs.whenJobAssigned(outDir);
       await this.sendFiles(filePaths);
-      if (cbs?.cb2) cbs.cb2();
+      if (cbs?.whenFilesSent) cbs.whenFilesSent();
       await this._config.res?.finishPromise.promise;
-      if (cbs?.cb3) cbs?.cb3();
+      if (cbs?.whenJobDone) cbs?.whenJobDone();
+      return outDir;
     } catch (err) {
       return { err };
     }
@@ -414,7 +401,7 @@ export default class Delcom {
     }
   }
 
-  private clearJob(err?: unknown, callback?: callbackWithErr) {
+  private clearJob(err?: unknown, callback?: dcc.callbackWithErr) {
     this._config.isWorking = false;
     this._config.job = undefined;
     if (err) {
