@@ -1,11 +1,12 @@
-import fs, { PathLike } from 'node:fs';
+import fs from 'node:fs';
+// import type { PathLike } from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { io } from 'socket.io-client';
 import { spawn } from 'child_process';
 import type * as DCST from 'delcom-server';
-import * as DCCT from './types.d.js';
+import type * as DCCT from './types.d.ts';
 
 const outputNames = [
   'build_std_out',
@@ -210,7 +211,7 @@ export class DelcomClient implements DCCT.ClientInterface {
    * @returns
    */
   async getWorkers(): Promise<{
-    res?: DCST.Workers;
+    res?: DCST.Workers[];
     err?: unknown;
   }> {
     try {
@@ -218,7 +219,8 @@ export class DelcomClient implements DCCT.ClientInterface {
       if (!socket) {
         throw Error('Cannot get workers, no socket!');
       }
-      return { res: await socket.emitWithAck('get_workers_ack') };
+      const res: DCST.Workers[] = await socket.emitWithAck('get_workers_ack');
+      return { res };
     } catch (err) {
       return { err };
     }
@@ -241,7 +243,7 @@ export class DelcomClient implements DCCT.ClientInterface {
       whenFilesSent?: () => void; // job files sent
       whenJobDone?: () => void; // job completed successfully
     },
-  ): Promise<PathLike | { err: unknown }> {
+  ): Promise<fs.PathLike | { err: unknown }> {
     try {
       await this.createJob(workerID, filePaths, opts?.outDir);
       const outDir = this._config.res?.dir;

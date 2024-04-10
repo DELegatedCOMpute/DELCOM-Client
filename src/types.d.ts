@@ -47,7 +47,7 @@ export interface ClientInterface {
   joinWorkforce: () => Promise<void | { err: unknown }>;
   leaveWorkforce: () => Promise<void | { err: unknown }>;
   getWorkers: () => Promise<{
-    res?: dcc.workerListElement[];
+    res?: DCST.Workers[];
     err?: unknown;
   }>;
   delegateJob: (
@@ -59,7 +59,7 @@ export interface ClientInterface {
       whenFilesSent?: () => void; // job files sent
       whenJobDone?: () => void; // job completed
     },
-  ) => Promise<PathLike | { err: unknown }>;
+  ) => Promise<fs.PathLike | { err: unknown }>;
 }
 export interface ClientConstructor {
   new (ip: string, port: number): ClientInterface;
