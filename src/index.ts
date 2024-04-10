@@ -5,7 +5,7 @@ import os from 'node:os';
 import { io } from 'socket.io-client';
 import { spawn } from 'child_process';
 import type * as DCST from 'delcom-server';
-import type * as DCCT from './types.d.ts';
+import * as DCCT from './types.d.js';
 
 const outputNames = [
   'build_std_out',
@@ -14,7 +14,7 @@ const outputNames = [
   'run_std_err',
 ];
 
-export default class Delcom implements DCCT.DelcomClient {
+export class Delcom implements DCCT.DelcomClient {
   private _config: DCCT.Config;
 
   constructor( ip: string, port: number) {
@@ -441,4 +441,12 @@ export default class Delcom implements DCCT.DelcomClient {
     this._config.isDelegating = false;
     this._config.res = undefined;
   }
+}
+
+export function createClient(
+  client: DCCT.DelcomClientConstructor,
+  ip: string,
+  port: number,
+): DCCT.DelcomClient {
+  return new client(ip, port);
 }

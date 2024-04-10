@@ -61,6 +61,6 @@ export interface DelcomClient {
     },
   ) => Promise<PathLike | { err: unknown }>;
 }
-interface DelcomClientConstructor {
+export interface DelcomClientConstructor {
   new (ip: string, port: number): DelcomClient;
 }
