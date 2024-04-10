@@ -14,7 +14,7 @@ const outputNames = [
   'run_std_err',
 ];
 
-export class DelcomClient implements DCCT.ClientInterface {
+class DelcomClient implements DCCT.ClientInterface {
   private _config: DCCT.Config;
 
   constructor( ip: string, port: number) {
@@ -443,10 +443,15 @@ export class DelcomClient implements DCCT.ClientInterface {
   }
 }
 
-export function createClient(
+function createClient(
   client: DCCT.ClientConstructor,
   ip: string,
   port: number,
 ): DCCT.ClientInterface {
   return new client(ip, port);
 }
+
+export default {
+  DelcomClient,
+  createClient,
+};
