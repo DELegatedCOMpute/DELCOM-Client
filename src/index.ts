@@ -4,7 +4,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { io } from 'socket.io-client';
 import { spawn } from 'child_process';
-import type * as dcc from './types.d.ts';
+import type * as DCST from 'delcom-server';
+import type * as DCCT from './types.d.ts';
 
 const outputNames = [
   'build_std_out',
@@ -13,18 +14,24 @@ const outputNames = [
   'run_std_err',
 ];
 
-export default class Delcom implements dcc.DelcomClient {
-  private _config: dcc.configType;
+export default class Delcom implements DCCT.DelcomClient {
+  private _config: DCCT.Config;
 
-  constructor(args: { ip: string; port: number }) {
-    const { ip, port } = args;
+  constructor( ip: string, port: number) {
     this._config = {
       ip,
       port,
-      id: undefined,
+      id: 'TODO',
       isWorking: false,
       isDelegating: false,
       isWorker: false,
+      workerInfo: {
+        machineArch: os.arch(),
+        cpus: os.cpus().map((cpu) => {
+          return { model: cpu.model, speed: cpu.speed};
+        }),
+        ram: os.totalmem(),
+      },
     };
   }
 
@@ -34,6 +41,7 @@ export default class Delcom implements dcc.DelcomClient {
    * @returns A void promise on successful connection
    */
   async init(): Promise<void> {
+    // set up temp parent folder
     this._config.delcomTempDir = path.join(os.tmpdir(), 'DELCOM');
     if (!fs.existsSync(this._config.delcomTempDir)) {
       console.warn(`${this._config.delcomTempDir} not detected, making...`);
@@ -46,7 +54,7 @@ export default class Delcom implements dcc.DelcomClient {
 
     socket.on(
       'new_job_ack',
-      async (newJobData: dcc.newJobAckArg, callback: dcc.callbackWithErr) => {
+      async (newJobData: DCCT.NewJobAckArg, callback: DCCT.CallbackWithErr) => {
         try {
           const fileNames = newJobData.fileNames;
           console.log('Job requested, preparing...');
@@ -82,8 +90,8 @@ export default class Delcom implements dcc.DelcomClient {
     socket.on(
       'receive_file_data_ack',
       (
-        arg0: dcc.receiveFileDataArg,
-        callback: dcc.callbackWithErr,
+        arg0: DCCT.ReceiveFileDataArg,
+        callback: DCCT.CallbackWithErr,
       ) => {
         try {
           if (!this._config.job) {
@@ -106,15 +114,15 @@ export default class Delcom implements dcc.DelcomClient {
 
     for (const outputName of outputNames) {
       socket.on(`${outputName}`, async (
-        arg0: dcc.outputArg,
-        callback: dcc.outputCB,
+        chunk: string | Buffer,
+        callback: DCCT.CallbackWithErr,
       ) => {
         try {
           const ws = this._config.res?.writeStreams[outputName];
           if (!ws) {
             throw Error('No writeable stream to write to!');
           }
-          ws.write(arg0.chunk);
+          ws.write(chunk);
         } catch (err) {
           this.clearJob(err, callback);
         }
@@ -122,8 +130,7 @@ export default class Delcom implements dcc.DelcomClient {
     }
 
     socket.on('run_job_ack', async (
-      arg0: dcc.runJobAckArg,
-      callback: dcc.runJobAckCB,
+      callback: DCCT.CallbackWithErr,
     ) => {
       try {
         // TODO ensure write streams are drained, clear them
@@ -145,8 +152,7 @@ export default class Delcom implements dcc.DelcomClient {
     });
 
     socket.on('get_config_ack', (
-      arg0: dcc.getConfigAckArg,
-      callback: dcc.getConfigAckCB,
+      callback: DCCT.GetConfigAckCB,
     ) => {
       callback(this._config);
     });
@@ -158,11 +164,11 @@ export default class Delcom implements dcc.DelcomClient {
     return new Promise<void>((res) =>
       socket.on('connect', async () => {
         console.log('connected');
-        this._config.id = await socket.emitWithAck('identify', {
-          id: this._config.id,
-          isWorking: this._config.isWorker,
-          isWorker: this._config.isWorker,
-        });
+        const identity: DCST.Identity = {
+          id: this._config.id || 'BAD',
+          workerInfo: this._config.workerInfo,
+        };
+        this._config.id = await socket.emitWithAck('identify', identity);
         res();
       }),
     );
@@ -178,7 +184,10 @@ export default class Delcom implements dcc.DelcomClient {
       if (!this._config.socket) {
         throw Error('Not connected, cannot become worker!');
       }
-      await this._config.socket.emitWithAck('join_ack');
+      await this._config.socket.emitWithAck(
+        'join_ack',
+        this._config.workerInfo,
+      );
     } catch (err) {
       return { err };
     }
@@ -201,7 +210,7 @@ export default class Delcom implements dcc.DelcomClient {
    * @returns
    */
   async getWorkers(): Promise<{
-    res?: dcc.workerListElement[];
+    res?: DCST.Workers;
     err?: unknown;
   }> {
     try {
@@ -228,25 +237,22 @@ export default class Delcom implements dcc.DelcomClient {
     filePaths: fs.PathLike[],
     opts?: {
       outDir?: fs.PathLike,
-      cbs?: {
-        whenJobAssigned?: (path: fs.PathLike) => void; // job assigned
-        whenFilesSent?: () => void; // job files sent
-        whenJobDone?: () => void; // job completed successfully
-      },
+      whenJobAssigned?: (path: fs.PathLike) => void; // job assigned
+      whenFilesSent?: () => void; // job files sent
+      whenJobDone?: () => void; // job completed successfully
     },
   ): Promise<PathLike | { err: unknown }> {
     try {
-      const cbs = opts?.cbs;
       await this.createJob(workerID, filePaths, opts?.outDir);
       const outDir = this._config.res?.dir;
       if (!outDir) {
         throw Error('No outDir after creating job?');
       }
-      if (cbs?.whenJobAssigned) cbs.whenJobAssigned(outDir);
+      if (opts?.whenJobAssigned) opts.whenJobAssigned(outDir);
       await this.sendFiles(filePaths);
-      if (cbs?.whenFilesSent) cbs.whenFilesSent();
+      if (opts?.whenFilesSent) opts.whenFilesSent();
       await this._config.res?.finishPromise.promise;
-      if (cbs?.whenJobDone) cbs?.whenJobDone();
+      if (opts?.whenJobDone) opts?.whenJobDone();
       return outDir;
     } catch (err) {
       return { err };
@@ -401,7 +407,7 @@ export default class Delcom implements dcc.DelcomClient {
     }
   }
 
-  private clearJob(err?: unknown, callback?: dcc.callbackWithErr) {
+  private clearJob(err?: unknown, callback?: DCCT.CallbackWithErr) {
     this._config.isWorking = false;
     this._config.job = undefined;
     if (err) {
