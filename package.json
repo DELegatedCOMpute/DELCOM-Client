@@ -5,10 +5,10 @@
   "description": "TS client for DELCOM",
   "main": "build/index.js",
   "type": "module",
-  "types": "src/types.d.ts",
+  "types": "build/types.d.ts",
   "scripts": {
     "prepare": "npm run build",
-    "build": "rimraf ./build && tsc",
+    "build": "rimraf ./build && copyfiles src/types.d.ts -f build && tsc",
     "start": "npm run build && node build/index.js",
     "start:dev": "tsx watch src/index.ts"
   },
@@ -32,6 +32,7 @@
     "@types/node": "^20.11.30",
     "@typescript-eslint/eslint-plugin": "^7.5.0",
     "@typescript-eslint/parser": "^7.5.0",
+    "copyfiles": "^2.4.1",
     "eslint": "^8.57.0",
     "prettier": "^3.2.5",
     "rimraf": "^5.0.5",
