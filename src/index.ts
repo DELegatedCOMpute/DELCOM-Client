@@ -22,7 +22,7 @@ export class Client {
     this._config = {
       ip,
       port,
-      id: 'TODO',
+      id: '',
       isWorking: false,
       isDelegating: false,
       isWorker: false,
@@ -162,14 +162,23 @@ export class Client {
       console.log(`Disconnected: ${reason}`);
     });
 
+    socket.on('delegator_disconnect', () => {
+      console.log('Delegator has disconnected. Stopping job.');
+      this.clearJob('Delegator has disconnected');
+    });
+
+    socket.on('worker_disconnect', () => {
+      console.log('Worker has disconnected. Stopping job.');
+      this.clearDelegation('Worker has disconnected');
+    });
+
     return new Promise<void>((res) =>
       socket.on('connect', async () => {
         console.log('connected');
-        const identity: DCST.Identity = {
-          id: this._config.id || 'BAD',
-          workerInfo: this._config.workerInfo,
-        };
-        this._config.id = await socket.emitWithAck('identify', identity);
+        this._config.id = await socket.emitWithAck(
+          'identify',
+          this._config.workerInfo,
+        );
         res();
       }),
     );
@@ -187,7 +196,6 @@ export class Client {
       }
       await this._config.socket.emitWithAck(
         'join_ack',
-        this._config.workerInfo,
       );
     } catch (err) {
       return { err };
