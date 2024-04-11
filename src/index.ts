@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { io } from 'socket.io-client';
 import { spawn } from 'child_process';
+import { Socket } from 'socket.io-client';
 import type * as DCST from 'delcom-server';
 import type * as DCCT from './types.d.ts';
 
@@ -17,6 +18,7 @@ const outputNames = [
 
 export class Client {
   private _config: DCCT.Config;
+  private _socket?: Socket;
 
   constructor( ip: string, port: number) {
     this._config = {
@@ -46,12 +48,12 @@ export class Client {
     this._config.delcomTempDir = path.join(os.tmpdir(), 'DELCOM');
     if (!fs.existsSync(this._config.delcomTempDir)) {
       console.warn(`${this._config.delcomTempDir} not detected, making...`);
-      fsp.mkdir(this._config.delcomTempDir);
+      await fsp.mkdir(this._config.delcomTempDir);
     }
 
     const addr = `http://${this._config.ip}:${this._config.port}`;
     const socket = io(addr); // todo add query with config
-    this._config.socket = socket;
+    this._socket = socket;
 
     socket.on(
       'new_job_ack',
@@ -189,10 +191,10 @@ export class Client {
   async joinWorkforce(): Promise<void | { err: unknown }> {
     try {
       this._config.isWorker = true;
-      if (!this._config.socket) {
+      if (!this._socket) {
         throw Error('Not connected, cannot become worker!');
       }
-      await this._config.socket.emitWithAck(
+      await this._socket.emitWithAck(
         'join_ack',
       );
     } catch (err) {
@@ -203,10 +205,10 @@ export class Client {
   async leaveWorkforce(): Promise<void | { err: unknown }> {
     try {
       this._config.isWorker = false;
-      if (!this._config.socket) {
+      if (!this._socket) {
         throw Error('Not connected, cannot stop working!');
       }
-      await this._config.socket.emitWithAck('leave_ack');
+      await this._socket.emitWithAck('leave_ack');
     } catch (err) {
       return { err };
     }
@@ -221,7 +223,7 @@ export class Client {
     err?: unknown;
   }> {
     try {
-      const socket = this._config.socket;
+      const socket = this._socket;
       if (!socket) {
         throw Error('Cannot get workers, no socket!');
       }
@@ -253,6 +255,7 @@ export class Client {
     try {
       console.log('Creating job');
       await this.createJob(workerID, filePaths, opts?.outDir);
+      console.log('Job Created');
       const outDir = this._config.res?.dir;
       if (!outDir) {
         throw Error('No outDir after creating job?');
@@ -273,11 +276,11 @@ export class Client {
       if (!this._config.job?.dir) {
         return rej('No job dir to build from!');
       }
-      if (!this._config.socket) {
+      if (!this._socket) {
         return rej('No socket to build with!');
       }
       const dir = this._config.job?.dir.toString();
-      const socket = this._config.socket;
+      const socket = this._socket;
       const dockerName = path.basename(dir).toLowerCase();
       const build = spawn('docker', [
         'build',
@@ -306,11 +309,11 @@ export class Client {
       if (!this._config.job?.dir) {
         return rej('No job dir to build from!');
       }
-      if (!this._config.socket) {
+      if (!this._socket) {
         return rej('No socket to build with!');
       }
       const dir = this._config.job?.dir.toString();
-      const socket = this._config.socket;
+      const socket = this._socket;
       const dockerName = path.basename(dir).toLowerCase();
       const build = spawn('docker', ['run', dockerName]);
       build.stdout.on('data', (chunk) => {
@@ -370,7 +373,7 @@ export class Client {
         throw Error('No Dockerfile found in filePaths!');
       }
       console.log(`Starting new job, storing at ${this._config.res.dir}`);
-      const ack = await this._config.socket?.emitWithAck(
+      const ack = await this._socket?.emitWithAck(
         'new_job_ack',
         {
           workerID,
@@ -382,13 +385,12 @@ export class Client {
       }
     } catch (err) {
       this.clearDelegation(err);
-      throw err;
     }
   }
 
   private async sendFiles(filePaths: fs.PathLike[]) {
     try {
-      const socket = this._config.socket;
+      const socket = this._socket;
       if (!socket) {
         throw Error('No socket to send through!');
       }
@@ -415,7 +417,6 @@ export class Client {
       socket.emit('files_done_sending');
     } catch (err) {
       this.clearDelegation(err);
-      throw err;
     }
   }
 
@@ -425,6 +426,7 @@ export class Client {
     if (err) {
       console.log(err);
     }
+    // console.log('clearJob 4');
     if (callback) {
       if (err instanceof Error) {
         callback({ err: err.message });
@@ -439,11 +441,10 @@ export class Client {
   }
 
   private clearDelegation(err?: unknown) {
-    console.log(this._config.res?.finishPromise);
     if (err) {
       console.error(err);
       if (this._config.res?.finishPromise.rej) {
-        this._config.res.finishPromise.rej();
+        // this._config.res.finishPromise.rej('reject');
       }
     } else {
       if (this._config.res?.finishPromise.res) {

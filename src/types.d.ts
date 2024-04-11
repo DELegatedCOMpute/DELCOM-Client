@@ -1,6 +1,5 @@
 declare module 'delcom-client';
 import fs from 'node:fs';
-import { Socket } from 'socket.io-client';
 import type * as DCST from 'delcom-server';
 
 export type CallbackWithErr = (arg0?: { err: string }) => void;
@@ -24,7 +23,6 @@ export type ResultInfo = {
 export type Config = {
   ip: string; // ip of server
   port: number; // port of server
-  socket?: Socket; // socket to server
   id: string; // unique ID
   delcomTempDir?: string;
   isWorking: boolean; // if the client is currently working
