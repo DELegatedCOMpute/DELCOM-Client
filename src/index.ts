@@ -55,9 +55,8 @@ export class Client {
 
     socket.on(
       'new_job_ack',
-      async (newJobData: DCCT.NewJobAckArg, callback: DCCT.CallbackWithErr) => {
+      async (fileNames: string[], callback: DCCT.CallbackWithErr) => {
         try {
-          const fileNames = newJobData.fileNames;
           console.log('Job requested, preparing...');
           if (this._config.isWorking || this._config.job) {
             throw Error('Already working job!');
@@ -135,7 +134,6 @@ export class Client {
     ) => {
       try {
         // TODO ensure write streams are drained, clear them
-        console.log(`starting job at ${this._config.res?.dir}`);
         await this.buildContainer();
         console.log('built job, running');
         await this.runContainer();
@@ -253,6 +251,7 @@ export class Client {
     },
   ): Promise<fs.PathLike | { err: unknown }> {
     try {
+      console.log('Creating job');
       await this.createJob(workerID, filePaths, opts?.outDir);
       const outDir = this._config.res?.dir;
       if (!outDir) {
@@ -370,10 +369,13 @@ export class Client {
       if (!fileNames.includes('Dockerfile')) {
         throw Error('No Dockerfile found in filePaths!');
       }
+      console.log(`Starting new job, storing at ${this._config.res.dir}`);
       const ack = await this._config.socket?.emitWithAck(
         'new_job_ack',
-        workerID,
-        fileNames,
+        {
+          workerID,
+          fileNames,
+        },
       );
       if (ack) {
         throw ack;

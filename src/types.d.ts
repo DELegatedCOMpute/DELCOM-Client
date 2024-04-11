@@ -37,8 +37,6 @@ export type Config = {
 
 // Client Listener Functions
 
-export type NewJobAckArg = { fileNames: string[] };
-
 export type ReceiveFileDataArg = { name: string; chunk: string | Buffer };
 
 export type GetConfigAckCB = (arg0: Config) => void;
