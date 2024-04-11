@@ -1,3 +1,4 @@
+declare module 'delcom-client';
 import fs from 'node:fs';
 import { Socket } from 'socket.io-client';
 import type * as DCST from 'delcom-server';
