@@ -43,7 +43,8 @@ export type ReceiveFileDataArg = { name: string; chunk: string | Buffer };
 
 export type GetConfigAckCB = (arg0: Config) => void;
 
-export interface ClientInterface {
+export class Client {
+  constructor(ip: string, port: number);
   init: () => Promise<void>;
   joinWorkforce: () => Promise<void | { err: unknown }>;
   leaveWorkforce: () => Promise<void | { err: unknown }>;
@@ -63,5 +64,10 @@ export interface ClientInterface {
   ) => Promise<fs.PathLike | { err: unknown }>;
 }
 export interface ClientConstructor {
-  new (ip: string, port: number): ClientInterface;
 }
+
+export function createClient(
+  client: ClientConstructor,
+  ip: string,
+  port: number,
+): Client;

@@ -15,7 +15,7 @@ const outputNames = [
   'run_std_err',
 ];
 
-export class Client implements DCCT.ClientInterface {
+export class Client {
   private _config: DCCT.Config;
 
   constructor( ip: string, port: number) {
@@ -449,6 +449,6 @@ export function createClient(
   client: DCCT.ClientConstructor,
   ip: string,
   port: number,
-): DCCT.ClientInterface {
-  return new client(ip, port);
+): DCCT.Client {
+  return new Client(ip, port);
 }
