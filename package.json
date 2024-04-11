@@ -24,7 +24,6 @@
   "homepage": "https://github.com/DELegatedCOMpute/DELCOM-Client#readme",
   "dependencies": {
     "delcom-server": "github:DELegatedCOMpute/DELCOM-Server",
-    "delcom-types": "github:DELegatedCOMpute/DELCOM-Types",
     "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
