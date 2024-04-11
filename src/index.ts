@@ -15,7 +15,7 @@ const outputNames = [
   'run_std_err',
 ];
 
-export class DelcomClient implements DCCT.ClientInterface {
+export class Client implements DCCT.ClientInterface {
   private _config: DCCT.Config;
 
   constructor( ip: string, port: number) {

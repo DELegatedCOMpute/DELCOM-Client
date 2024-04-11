@@ -5,7 +5,7 @@
   "description": "TS client for DELCOM",
   "main": "build/index.js",
   "type": "module",
-  "types": "src/types.d.ts",
+  "types": "build/index.d.ts",
   "scripts": {
     "prepare": "npm run build",
     "build": "rimraf ./build && tsc",
