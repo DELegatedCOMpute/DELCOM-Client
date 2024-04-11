@@ -63,11 +63,3 @@ export class Client {
     },
   ) => Promise<fs.PathLike | { err: unknown }>;
 }
-export interface ClientConstructor {
-}
-
-export function createClient(
-  client: ClientConstructor,
-  ip: string,
-  port: number,
-): Client;

@@ -444,11 +444,3 @@ export class Client {
     this._config.res = undefined;
   }
 }
-
-export function createClient(
-  client: DCCT.ClientConstructor,
-  ip: string,
-  port: number,
-): DCCT.Client {
-  return new Client(ip, port);
-}
