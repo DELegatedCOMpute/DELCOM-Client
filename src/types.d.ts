@@ -45,7 +45,7 @@ export class Client {
   joinWorkforce: () => Promise<void | { err: unknown }>;
   leaveWorkforce: () => Promise<void | { err: unknown }>;
   getWorkers: () => Promise<{
-    res?: DCST.Workers[];
+    res?: DCST.Worker[];
     err?: unknown;
   }>;
   delegateJob: (
