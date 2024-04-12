@@ -16,13 +16,19 @@ const outputNames = [
   'run_std_err',
 ];
 
-const TIMEOUT = 60 * 1000;
+const TIMEOUT = 10 * 1000;
 
 export class Client {
   private _config: DCCT.Config;
   private _socket?: Socket;
 
-  constructor(ip: string, port: number) {
+  constructor(
+    ip: string,
+    port: number,
+    opts?: {
+      timeout?: number;
+    },
+  ) {
     this._config = {
       ip,
       port,
@@ -37,6 +43,7 @@ export class Client {
         }),
         ram: os.totalmem(),
       },
+      timeout: opts?.timeout,
     };
   }
 
@@ -172,7 +179,7 @@ export class Client {
         console.log('connected');
         try {
           this._config.id = await socket
-            .timeout(TIMEOUT)
+            .timeout(this._config.timeout || TIMEOUT)
             .emitWithAck('identify', this._config.workerInfo);
           res({});
         } catch (err) {
@@ -192,7 +199,9 @@ export class Client {
       if (!this._socket) {
         throw Error('Not connected, cannot become worker!');
       }
-      await this._socket.timeout(TIMEOUT).emitWithAck('join_ack');
+      await this._socket
+        .timeout(this._config.timeout || TIMEOUT)
+        .emitWithAck('join_ack');
       return {};
     } catch (err) {
       return { err };
@@ -205,7 +214,9 @@ export class Client {
       if (!this._socket) {
         throw Error('Not connected, cannot stop working!');
       }
-      await this._socket.timeout(TIMEOUT).emitWithAck('leave_ack');
+      await this._socket
+        .timeout(this._config.timeout || TIMEOUT)
+        .emitWithAck('leave_ack');
       return {};
     } catch (err) {
       return { err };
@@ -226,7 +237,7 @@ export class Client {
         throw Error('Cannot get workers, no socket!');
       }
       const res: DCST.Worker[] = await socket
-        .timeout(TIMEOUT)
+        .timeout(this._config.timeout || TIMEOUT)
         .emitWithAck('get_workers_ack');
       return { res };
     } catch (err) {
@@ -411,7 +422,7 @@ export class Client {
           });
           readStream.on('data', async (chunk) => {
             await socket
-              .timeout(TIMEOUT)
+              .timeout(this._config.timeout || TIMEOUT)
               .emitWithAck('send_file_data_ack', { name, chunk });
           });
           return new Promise<void>((resolve, reject) => {
