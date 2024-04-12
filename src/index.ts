@@ -219,7 +219,7 @@ export class Client {
    * @returns
    */
   async getWorkers(): Promise<{
-    res?: DCST.Workers[];
+    res?: DCST.Worker[];
     err?: unknown;
   }> {
     try {
@@ -227,7 +227,7 @@ export class Client {
       if (!socket) {
         throw Error('Cannot get workers, no socket!');
       }
-      const res: DCST.Workers[] = await socket.emitWithAck('get_workers_ack');
+      const res: DCST.Worker[] = await socket.emitWithAck('get_workers_ack');
       return { res };
     } catch (err) {
       return { err };
