@@ -41,7 +41,7 @@ export type ReceiveFileDataArg = { name: string; chunk: string | Buffer };
 export type GetConfigAckCB = (arg0: Config) => void;
 
 export class Client {
-  constructor(ip: string, port: number);
+  constructor(ip: string, port: number, opts: { timeout: number });
   init: () => Promise<{ err?: unknown }>;
   joinWorkforce: () => Promise<{ err?: unknown }>;
   leaveWorkforce: () => Promise<{ err?: unknown }>;
