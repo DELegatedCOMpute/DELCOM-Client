@@ -216,13 +216,10 @@ export class Client {
    *
    * @returns
    */
-  async getWorkers(): Promise<
-    | {
-      res: DCST.Worker[];
-      err?: unknown;
-    }
-    | { err: unknown }
-  > {
+  async getWorkers(): Promise<{
+    res?: DCST.Worker[];
+    err?: unknown;
+  }> {
     try {
       const socket = this._socket;
       if (!socket) {
@@ -254,7 +251,7 @@ export class Client {
       whenFilesSent?: () => void; // job files sent
       whenJobDone?: () => void; // job completed successfully
     },
-  ): Promise<{ res: fs.PathLike; err?: unknown } | { err: unknown }> {
+  ): Promise<{ res?: fs.PathLike; err?: unknown }> {
     try {
       console.log('Creating job');
       await this.createJob(workerID, filePaths, opts?.outDir);
@@ -268,7 +265,7 @@ export class Client {
       if (opts?.whenFilesSent) opts.whenFilesSent();
       await this._config.res?.finishPromise.promise;
       if (opts?.whenJobDone) opts?.whenJobDone();
-      return {res: outDir};
+      return { res: outDir };
     } catch (err) {
       return { err };
     }
@@ -277,12 +274,12 @@ export class Client {
   quit() {
     try {
       if (!this._socket) {
-        return {err: 'No socket to disconnect!'};
+        return { err: 'No socket to disconnect!' };
       }
       this._socket?.disconnect();
       return {};
     } catch (err) {
-      return {err};
+      return { err };
     }
   }
 

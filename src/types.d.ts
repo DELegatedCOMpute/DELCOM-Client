@@ -44,12 +44,10 @@ export class Client {
   init: () => Promise<{ err?: unknown }>;
   joinWorkforce: () => Promise<{ err?: unknown }>;
   leaveWorkforce: () => Promise<{ err?: unknown }>;
-  getWorkers: () => Promise<
-    | {
-      res: DCST.Worker[];
-      err?: unknown;
-    }
-    | { err: unknown }
+  getWorkers: () => Promise<{
+    res?: DCST.Worker[];
+    err?: unknown;
+  }
   >;
   delegateJob: (
     workerID: string,
@@ -60,6 +58,6 @@ export class Client {
       whenFilesSent?: () => void; // job files sent
       whenJobDone?: () => void; // job completed
     }
-  ) => Promise<{ res: fs.PathLike; err?: unknown } | { err: unknown }>;
+  ) => Promise<{ res?: fs.PathLike; err?: unknown }>;
   quit: () => {err?: unknown};
 }
