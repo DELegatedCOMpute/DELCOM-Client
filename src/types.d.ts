@@ -41,21 +41,25 @@ export type GetConfigAckCB = (arg0: Config) => void;
 
 export class Client {
   constructor(ip: string, port: number);
-  init: () => Promise<void>;
-  joinWorkforce: () => Promise<void | { err: unknown }>;
-  leaveWorkforce: () => Promise<void | { err: unknown }>;
-  getWorkers: () => Promise<{
-    res?: DCST.Worker[];
-    err?: unknown;
-  }>;
+  init: () => Promise<{ err?: unknown }>;
+  joinWorkforce: () => Promise<{ err?: unknown }>;
+  leaveWorkforce: () => Promise<{ err?: unknown }>;
+  getWorkers: () => Promise<
+    | {
+      res: DCST.Worker[];
+      err?: unknown;
+    }
+    | { err: unknown }
+  >;
   delegateJob: (
     workerID: string,
     filePaths: fs.PathLike[],
     opts?: {
-      outDir?: fs.PathLike,
+      outDir?: fs.PathLike;
       whenJobAssigned?: (path: fs.PathLike) => void; // job assigned
       whenFilesSent?: () => void; // job files sent
       whenJobDone?: () => void; // job completed
-    },
-  ) => Promise<fs.PathLike | { err: unknown }>;
+    }
+  ) => Promise<{ res: fs.PathLike; err?: unknown } | { err: unknown }>;
+  quit: () => {err?: unknown};
 }

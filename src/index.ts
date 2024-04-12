@@ -16,11 +16,13 @@ const outputNames = [
   'run_std_err',
 ];
 
+const TIMEOUT = 60 * 1000;
+
 export class Client {
   private _config: DCCT.Config;
   private _socket?: Socket;
 
-  constructor( ip: string, port: number) {
+  constructor(ip: string, port: number) {
     this._config = {
       ip,
       port,
@@ -31,7 +33,7 @@ export class Client {
       workerInfo: {
         machineArch: os.arch(),
         cpus: os.cpus().map((cpu) => {
-          return { model: cpu.model, speed: cpu.speed};
+          return { model: cpu.model, speed: cpu.speed };
         }),
         ram: os.totalmem(),
       },
@@ -43,7 +45,7 @@ export class Client {
    *
    * @returns A void promise on successful connection
    */
-  async init(): Promise<void> {
+  async init(): Promise<{ err?: unknown }> {
     // set up temp parent folder
     this._config.delcomTempDir = path.join(os.tmpdir(), 'DELCOM');
     if (!fs.existsSync(this._config.delcomTempDir)) {
@@ -91,10 +93,7 @@ export class Client {
 
     socket.on(
       'receive_file_data_ack',
-      (
-        arg0: DCCT.ReceiveFileDataArg,
-        callback: DCCT.CallbackWithErr,
-      ) => {
+      (arg0: DCCT.ReceiveFileDataArg, callback: DCCT.CallbackWithErr) => {
         try {
           if (!this._config.job) {
             throw Error('No job setup to write to!');
@@ -115,25 +114,23 @@ export class Client {
     );
 
     for (const outputName of outputNames) {
-      socket.on(`${outputName}`, async (
-        chunk: string | Buffer,
-        callback: DCCT.CallbackWithErr,
-      ) => {
-        try {
-          const ws = this._config.res?.writeStreams[outputName];
-          if (!ws) {
-            throw Error('No writeable stream to write to!');
+      socket.on(
+        `${outputName}`,
+        async (chunk: string | Buffer, callback: DCCT.CallbackWithErr) => {
+          try {
+            const ws = this._config.res?.writeStreams[outputName];
+            if (!ws) {
+              throw Error('No writeable stream to write to!');
+            }
+            ws.write(chunk);
+          } catch (err) {
+            this.clearJob(err, callback);
           }
-          ws.write(chunk);
-        } catch (err) {
-          this.clearJob(err, callback);
-        }
-      });
+        },
+      );
     }
 
-    socket.on('run_job_ack', async (
-      callback: DCCT.CallbackWithErr,
-    ) => {
+    socket.on('run_job_ack', async (callback: DCCT.CallbackWithErr) => {
       try {
         // TODO ensure write streams are drained, clear them
         await this.buildContainer();
@@ -152,9 +149,7 @@ export class Client {
       this.clearDelegation();
     });
 
-    socket.on('get_config_ack', (
-      callback: DCCT.GetConfigAckCB,
-    ) => {
+    socket.on('get_config_ack', (callback: DCCT.GetConfigAckCB) => {
       callback(this._config);
     });
 
@@ -172,14 +167,17 @@ export class Client {
       this.clearDelegation('Worker has disconnected');
     });
 
-    return new Promise<void>((res) =>
+    return new Promise<{ err?: unknown }>((res) =>
       socket.on('connect', async () => {
         console.log('connected');
-        this._config.id = await socket.emitWithAck(
-          'identify',
-          this._config.workerInfo,
-        );
-        res();
+        try {
+          this._config.id = await socket
+            .timeout(TIMEOUT)
+            .emitWithAck('identify', this._config.workerInfo);
+          res({});
+        } catch (err) {
+          res({ err });
+        }
       }),
     );
   }
@@ -188,27 +186,27 @@ export class Client {
    *
    * @returns A void promise on success
    */
-  async joinWorkforce(): Promise<void | { err: unknown }> {
+  async joinWorkforce(): Promise<{ err?: unknown }> {
     try {
       this._config.isWorker = true;
       if (!this._socket) {
         throw Error('Not connected, cannot become worker!');
       }
-      await this._socket.emitWithAck(
-        'join_ack',
-      );
+      await this._socket.timeout(TIMEOUT).emitWithAck('join_ack');
+      return {};
     } catch (err) {
       return { err };
     }
   }
 
-  async leaveWorkforce(): Promise<void | { err: unknown }> {
+  async leaveWorkforce(): Promise<{ err?: unknown }> {
     try {
       this._config.isWorker = false;
       if (!this._socket) {
         throw Error('Not connected, cannot stop working!');
       }
-      await this._socket.emitWithAck('leave_ack');
+      await this._socket.timeout(TIMEOUT).emitWithAck('leave_ack');
+      return {};
     } catch (err) {
       return { err };
     }
@@ -218,16 +216,21 @@ export class Client {
    *
    * @returns
    */
-  async getWorkers(): Promise<{
-    res?: DCST.Worker[];
-    err?: unknown;
-  }> {
+  async getWorkers(): Promise<
+    | {
+      res: DCST.Worker[];
+      err?: unknown;
+    }
+    | { err: unknown }
+  > {
     try {
       const socket = this._socket;
       if (!socket) {
         throw Error('Cannot get workers, no socket!');
       }
-      const res: DCST.Worker[] = await socket.emitWithAck('get_workers_ack');
+      const res: DCST.Worker[] = await socket
+        .timeout(TIMEOUT)
+        .emitWithAck('get_workers_ack');
       return { res };
     } catch (err) {
       return { err };
@@ -246,12 +249,12 @@ export class Client {
     workerID: string,
     filePaths: fs.PathLike[],
     opts?: {
-      outDir?: fs.PathLike,
+      outDir?: fs.PathLike;
       whenJobAssigned?: (path: fs.PathLike) => void; // job assigned
       whenFilesSent?: () => void; // job files sent
       whenJobDone?: () => void; // job completed successfully
     },
-  ): Promise<fs.PathLike | { err: unknown }> {
+  ): Promise<{ res: fs.PathLike; err?: unknown } | { err: unknown }> {
     try {
       console.log('Creating job');
       await this.createJob(workerID, filePaths, opts?.outDir);
@@ -265,9 +268,21 @@ export class Client {
       if (opts?.whenFilesSent) opts.whenFilesSent();
       await this._config.res?.finishPromise.promise;
       if (opts?.whenJobDone) opts?.whenJobDone();
-      return outDir;
+      return {res: outDir};
     } catch (err) {
       return { err };
+    }
+  }
+
+  quit() {
+    try {
+      if (!this._socket) {
+        return {err: 'No socket to disconnect!'};
+      }
+      this._socket?.disconnect();
+      return {};
+    } catch (err) {
+      return {err};
     }
   }
 
@@ -373,13 +388,10 @@ export class Client {
         throw Error('No Dockerfile found in filePaths!');
       }
       console.log(`Starting new job, storing at ${this._config.res.dir}`);
-      const ack = await this._socket?.emitWithAck(
-        'new_job_ack',
-        {
-          workerID,
-          fileNames,
-        },
-      );
+      const ack = await this._socket?.emitWithAck('new_job_ack', {
+        workerID,
+        fileNames,
+      });
       if (ack) {
         throw ack;
       }
@@ -401,7 +413,9 @@ export class Client {
             encoding: 'base64',
           });
           readStream.on('data', async (chunk) => {
-            await socket.emitWithAck('send_file_data_ack', { name, chunk });
+            await socket
+              .timeout(TIMEOUT)
+              .emitWithAck('send_file_data_ack', { name, chunk });
           });
           return new Promise<void>((resolve, reject) => {
             readStream.on('close', () => {
