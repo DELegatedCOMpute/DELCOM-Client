@@ -57,7 +57,7 @@ export class Client {
     this._config.delcomTempDir = path.join(os.tmpdir(), 'DELCOM');
     if (!fs.existsSync(this._config.delcomTempDir)) {
       console.warn(`${this._config.delcomTempDir} not detected, making...`);
-      await fsp.mkdir(this._config.delcomTempDir);
+      fs.mkdirSync(this._config.delcomTempDir);
     }
 
     const addr = `http://${this._config.ip}:${this._config.port}`;
