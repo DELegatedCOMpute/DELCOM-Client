@@ -16,7 +16,7 @@ const outputNames = [
   'run_std_err',
 ];
 
-const TIMEOUT = 10 * 1000;
+const TIMEOUT = 60 * 1000;
 
 export class Client {
   private _config: DCCT.Config;
