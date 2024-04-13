@@ -284,10 +284,11 @@ export class Client {
 
   quit() {
     try {
-      if (!this._socket) {
+      if (!this._socket || this._socket.disconnected) {
         return { err: 'No socket to disconnect!' };
       }
       this._socket?.disconnect();
+      this._socket = undefined;
       return {};
     } catch (err) {
       return { err };
