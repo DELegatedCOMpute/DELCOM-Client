@@ -4,7 +4,6 @@
   "version": "0.1.0",
   "description": "TS client for DELCOM",
   "main": "build/index.js",
-  "type": "module",
   "types": "build/index.d.ts",
   "scripts": {
     "prepare": "npm run build",
