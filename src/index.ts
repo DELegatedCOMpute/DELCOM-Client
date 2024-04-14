@@ -130,6 +130,7 @@ export class Client {
               throw Error('No writeable stream to write to!');
             }
             ws.write(chunk);
+            callback();
           } catch (err) {
             this.clearJob(err, callback);
           }
@@ -137,7 +138,7 @@ export class Client {
       );
     }
 
-    socket.on('run_job_ack', async (callback: DCCT.CallbackWithErr) => {
+    socket.on('run_job', async () => {
       try {
         const wss = this._config.job?.writeStreams;
         if (wss) {
@@ -157,11 +158,10 @@ export class Client {
         console.log('built job, running');
         await this.runContainer();
         console.log('finished job');
-        callback();
         socket.emit('done');
         this.clearJob();
       } catch (err) {
-        this.clearJob(err, callback);
+        this.clearJob(err);
       }
     });
 
@@ -462,7 +462,7 @@ export class Client {
     if (err) {
       console.log(err);
     }
-    // console.log('clearJob 4');
+    // TODO emit not working
     if (callback) {
       if (err instanceof Error) {
         callback({ err: err.message });
