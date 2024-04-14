@@ -14,9 +14,8 @@ export type ResultInfo = {
   dir: fs.PathLike;
   writeStreams: { [key: string]: fs.WriteStream };
   finishPromise: {
-    promise?: Promise<void>;
-    res?: () => void;
-    rej?: (arg0?: unknown) => void;
+    promise?: Promise<void | {err: unknown}>;
+    res?: (arg0?: {err: unknown}) => void;
   };
 };
 

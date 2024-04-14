@@ -384,10 +384,11 @@ export class Client {
         writeStreams: {},
         finishPromise: {},
       };
-      this._config.res.finishPromise.promise = new Promise<void>((res, rej) => {
+      this._config.res.finishPromise.promise = new Promise<void | {
+        err: unknown;
+      }>((res) => {
         if (this._config.res) {
           this._config.res.finishPromise.res = res;
-          this._config.res.finishPromise.rej = rej;
         }
       });
       for (const outputName of outputNames) {
@@ -495,15 +496,11 @@ export class Client {
         }),
       );
     }
+    if (this._config.res?.finishPromise.res) {
+      this._config.res.finishPromise.res({err});
+    }
     if (err) {
       console.error(err);
-      if (this._config.res?.finishPromise.rej) {
-        // this._config.res.finishPromise.rej('reject');
-      }
-    } else {
-      if (this._config.res?.finishPromise.res) {
-        this._config.res.finishPromise.res();
-      }
     }
     this._config.res = undefined;
     this._config.isDelegating = false;
