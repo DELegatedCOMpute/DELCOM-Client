@@ -459,9 +459,6 @@ export class Client {
   private clearJob(err?: unknown, callback?: DCCT.CallbackWithErr) {
     this._config.isWorking = false;
     this._config.job = undefined;
-    if (err) {
-      console.log(err);
-    }
     // TODO emit not working
     if (callback) {
       if (err instanceof Error) {
@@ -472,6 +469,12 @@ export class Client {
         callback({ err: 'Unknown error' });
       } else {
         callback();
+      }
+    }
+    if (err) {
+      console.log(err);
+      if (this._socket) {
+        this._socket.emit('clearing_job', err);
       }
     }
   }
