@@ -31,7 +31,7 @@ export type Config = {
   workerInfo: DCST.WorkerInfo;
   job?: JobInfo; // info about current job
   res?: ResultInfo; // info about job results
-  timeout?: number; // socket timeout in ms, default 10s
+  timeout?: number; // socket timeout in ms, default 60s
 };
 
 // Client Listener Functions

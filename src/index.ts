@@ -139,7 +139,20 @@ export class Client {
 
     socket.on('run_job_ack', async (callback: DCCT.CallbackWithErr) => {
       try {
-        // TODO ensure write streams are drained, clear them
+        const wss = this._config.job?.writeStreams;
+        if (wss) {
+          await Promise.all(
+            Object.values(wss).map(async (ws) => {
+              const prom = new Promise<void>((res) => {
+                ws.on('finish', () => {
+                  res();
+                });
+              });
+              ws.end();
+              await prom;
+            }),
+          );
+        }
         await this.buildContainer();
         console.log('built job, running');
         await this.runContainer();
@@ -152,8 +165,8 @@ export class Client {
       }
     });
 
-    socket.on('finished', () => {
-      this.clearDelegation();
+    socket.on('finished', async () => {
+      await this.clearDelegation();
     });
 
     socket.on('get_config_ack', (callback: DCCT.GetConfigAckCB) => {
@@ -169,9 +182,9 @@ export class Client {
       this.clearJob('Delegator has disconnected');
     });
 
-    socket.on('worker_disconnect', () => {
+    socket.on('worker_disconnect', async () => {
       console.log('Worker has disconnected. Stopping job.');
-      this.clearDelegation('Worker has disconnected');
+      await this.clearDelegation('Worker has disconnected');
     });
 
     return new Promise<{ err?: unknown }>((res) =>
@@ -287,7 +300,7 @@ export class Client {
       if (!this._socket || this._socket.disconnected) {
         return { err: 'No socket to disconnect!' };
       }
-      this._socket?.disconnect();
+      this._socket.disconnect();
       this._socket = undefined;
       return {};
     } catch (err) {
@@ -405,7 +418,7 @@ export class Client {
         throw ack;
       }
     } catch (err) {
-      this.clearDelegation(err);
+      await this.clearDelegation(err);
     }
   }
 
@@ -439,7 +452,7 @@ export class Client {
       console.log('files done sending');
       socket.emit('files_done_sending');
     } catch (err) {
-      this.clearDelegation(err);
+      await this.clearDelegation(err);
     }
   }
 
@@ -463,7 +476,22 @@ export class Client {
     }
   }
 
-  private clearDelegation(err?: unknown) {
+  private async clearDelegation(err?: unknown) {
+    // clear write streams
+    const wss = this._config.res?.writeStreams;
+    if (wss) {
+      await Promise.all(
+        Object.values(wss).map(async (ws) => {
+          const prom = new Promise<void>((res) => {
+            ws.on('finish', () => {
+              res();
+            });
+          });
+          ws.end();
+          await prom;
+        }),
+      );
+    }
     if (err) {
       console.error(err);
       if (this._config.res?.finishPromise.rej) {
@@ -474,7 +502,7 @@ export class Client {
         this._config.res.finishPromise.res();
       }
     }
-    this._config.isDelegating = false;
     this._config.res = undefined;
+    this._config.isDelegating = false;
   }
 }
