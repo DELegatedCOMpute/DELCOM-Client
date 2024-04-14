@@ -173,10 +173,6 @@ export class Client {
       callback(this._config);
     });
 
-    socket.on('disconnect', (reason) => {
-      console.log(`Disconnected: ${reason}`);
-    });
-
     socket.on('delegator_disconnect', () => {
       console.log('Delegator has disconnected. Stopping job.');
       this.clearJob('Delegator has disconnected');
@@ -185,6 +181,15 @@ export class Client {
     socket.on('worker_disconnect', async () => {
       console.log('Worker has disconnected. Stopping job.');
       await this.clearDelegation('Worker has disconnected');
+    });
+
+    socket.on('delegation_failed', (reason) => {
+      console.log(`Delegation failed: ${reason}`);
+      this.clearDelegation(reason);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log(`Disconnected: ${reason}`);
     });
 
     return new Promise<{ err?: unknown }>((res) =>
