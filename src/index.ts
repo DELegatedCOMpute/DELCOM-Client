@@ -292,9 +292,7 @@ export class Client {
       if (opts?.whenJobAssigned) opts.whenJobAssigned(outDir);
       await this.sendFiles(filePaths);
       if (opts?.whenFilesSent) opts.whenFilesSent();
-      console.log('here');
       await this._config.res?.finishPromise.promise;
-      console.log('here2');
       if (opts?.whenJobDone) opts?.whenJobDone();
       return { res: outDir };
     } catch (err) {
