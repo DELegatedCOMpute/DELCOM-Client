@@ -292,7 +292,10 @@ export class Client {
       if (opts?.whenJobAssigned) opts.whenJobAssigned(outDir);
       await this.sendFiles(filePaths);
       if (opts?.whenFilesSent) opts.whenFilesSent();
-      await this._config.res?.finishPromise.promise;
+      const finishRes = await this._config.res?.finishPromise.promise;
+      if (finishRes?.err) {
+        return {err: finishRes.err};
+      }
       if (opts?.whenJobDone) opts?.whenJobDone();
       return { res: outDir };
     } catch (err) {
@@ -465,7 +468,6 @@ export class Client {
   private clearJob(err?: unknown, callback?: DCCT.CallbackWithErr) {
     this._config.isWorking = false;
     this._config.job = undefined;
-    // TODO emit not working
     if (callback) {
       if (err instanceof Error) {
         callback({ err: err.message });
