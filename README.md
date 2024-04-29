@@ -11,7 +11,7 @@ Import into your project with `npm i DELegatedCOMpute/DELCOM-Client` and import 
 
 `delcomClient.getWorkers()`: returns the available workers
 
-`delcomClient.delegateJob(workerID, filePaths, {outDir, whenJobAssigned, whenFilesSent, whenJobDone)`
+`delcomClient.delegateJob(workerID, filePaths, {outDir, whenJobAssigned, whenFilesSent, whenJobDone})`
 
 -  workerID: the workerID to request for the job (from `getWorkers()`)
 -  filePaths: An array of fs.PathLike paths to files
